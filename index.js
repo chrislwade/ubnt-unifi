@@ -11,14 +11,14 @@ module.exports = class UnifiEvents extends EventEmitter {
         });
 
         this.opts = opts || {};
-        this.opts.host = this.opts.host || 'unifi';
-        this.opts.port = this.opts.port || 8443;
+        this.opts.url = this.opts.url || 'https://unifi:8443';
         this.opts.username = this.opts.username || 'admin';
         this.opts.password = this.opts.password || 'ubnt';
         this.opts.site = this.opts.site || 'default';
+        this.opts.isProxied = this.opts.isProxied || false;
 
         this.userAgent = 'node.js ubnt-unifi';
-        this.controller = url.parse('https://' + this.opts.host + ':' + this.opts.port);
+        this.controller = url.parse(this.opts.url);
 
         this.jar = rp.jar();
 
@@ -40,6 +40,7 @@ module.exports = class UnifiEvents extends EventEmitter {
         this.isClosed = false;
         return this._login(reconnect)
             .then(() => {
+                console.log("logged in...");
                 return this._listen();
             });
     }
@@ -50,7 +51,7 @@ module.exports = class UnifiEvents extends EventEmitter {
     }
 
     _login(reconnect) {
-        return this.rp.post(`${this.controller.href}api/login`, {
+        return this.rp.post(`${this.controller.href}api${this.opts.isProxied ? '/auth' : ''}/login`, {
             resolveWithFullResponse: true,
             body: {
                 username: this.opts.username,
@@ -65,7 +66,7 @@ module.exports = class UnifiEvents extends EventEmitter {
 
     _listen() {
         const cookies = this.jar.getCookieString(this.controller.href);
-        this.ws = new WebSocket(`wss://${this.controller.host}/wss/s/${this.opts.site}/events`, {
+        this.ws = new WebSocket(`wss://${this.controller.host}${this.opts.isProxied ? '/proxy/network' : ''}/wss/s/${this.opts.site}/events`, {
             perMessageDeflate: false,
             rejectUnauthorized: !this.opts.insecure,
             headers: {
@@ -145,7 +146,7 @@ module.exports = class UnifiEvents extends EventEmitter {
         if (path.indexOf('/') === 0) {
             return `${this.controller.href}${path}`;
         }
-        return `${this.controller.href}api/s/${this.opts.site}/${path}`;
+        return `${this.controller.href}${this.opts.isProxied ? '/proxy/network' : ''}api/s/${this.opts.site}/${path}`;
     }
 
     get(path) {
