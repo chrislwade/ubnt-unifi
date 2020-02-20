@@ -40,7 +40,6 @@ module.exports = class UnifiEvents extends EventEmitter {
         this.isClosed = false;
         return this._login(reconnect)
             .then(() => {
-                console.log("logged in...");
                 return this._listen();
             });
     }
